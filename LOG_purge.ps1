@@ -1,4 +1,4 @@
-﻿# -----------------------------------------------------------------
+# -----------------------------------------------------------------
 #
 # 	Objet		LOG
 # 	Fonction	purge les anciens logs
@@ -19,31 +19,29 @@
 #               elt le 10/11/2015: v2.1 - utilise 7z pour la compression des dir (pb de fiabilité sinon)
 #               elt le 07/01/2016: v2.2 - elargir la fenetre pour l'affichage
 #               elt le 22/01/2016: v2.3 - utlise 7z pour toutes les compressions
-#               elt le 19/02/2016: v2.3.1 - ajout exit 99 si 7z non trouvé  
+#               elt le 19/02/2016: v2.3.1 - ajout exit 99 si 7z non trouvé
+#               elt le 29/06/2016: v2.3.2 - modif de code, suppression de la fonction fzip
 #
 # -----------------------------------------------------------------
 
 # -----------------------------------------------------------------
 # Gestion des parametres et variables propres au script
 # -----------------------------------------------------------------
+[CmdletBinding()] 
 param (
     [switch] $version= $false,
+    [switch] $help=$false,
     [Switch] $createtask=$false,
     [switch] $createconf=$false
 )
 
-$scriptversion = "2.3.1"
+$scriptversion = "2.3.2"
 $consignePurge= "LOG_purge.conf"
 $7zPath="D:\sources\claranet\7z.exe"
 
 # -----------------------------------------------------------------
 # Variables génériques
 # -----------------------------------------------------------------
-
-# mettre Continue pour afficher le test, SilentlyContinue sinon
-$VerbosePreference = "Continue"
-
-
 $scriptName = $myInvocation.MyCommand.Name
 $scriptshortname= $scriptName.substring(0,$scriptName.length-4)
 $scriptLongName = $myInvocation.MyCommand.path
@@ -61,9 +59,6 @@ else
     {write-debug "le repertoire $LogPath n'existe pas, utilisation du repertoire courant"
     $Logfile= "$scriptshortname-$stamp.log"
     }
-
-
-
 
 # -----------------------------------------------------------------
 # Fonction utilisables
@@ -202,40 +197,6 @@ function compacter
                 }
 }
 
-
-function fzip
-{
-    param(
-        $file
-        )
-
-    $zipfilename = $file+".zip"
-
-    write-host "Compressing [$file] to [$zipfilename]..."
-    if(-not (test-path($zipfilename)))
-        {
-        set-content $zipfilename ("PK" + [char]5 + [char]6 + ("$([char]0)" * 18))
-        (dir $zipfilename).IsReadOnly = $false
-        $shellApplication = new-object -com shell.application
-        $zipPackage = $shellApplication.NameSpace($zipfilename)
-        $zipPackage.MoveHere($file)
-        do {
-            $zipCount = $zipPackage.Items().count
-            write-host "." -nonewline
-            Start-sleep -Seconds 1
-        }
-        While ($zippackage.Items().count -lt 1)
-        Write-host "Finished zipping successfully"
-        
-        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($zipPackage)
-        remove-variable zipPackage
-        if (Test-Path $file -PathType container) {Remove-Item $file -force -Recurse}
-    }else{
-	      write-warning "Le fichier zip existe deja"
-    }
-}
-
-
 function f7zip
 {
     param(
@@ -326,6 +287,10 @@ if ($version) {
     exit 0
     }
 
+if ($help) {
+  Get-Help $scriptLongName -full
+  exit 0
+}
 if ($createtask) {
     write-host "creation d'une tache planifiée..."
     Create-ScheduledTask
@@ -349,7 +314,7 @@ if ($createtask -OR $createconf) {
  set-alias sz "$7ZPath"  
  
 Adapt-Screen 
-if (!(test-path ENV:\SCHEDULER_JOB_NAME)) {Start-transcript -path "$LogFile" -append }
+if (!(test-path ENV:\SCHEDULER_JOB_NAME)) {Start-transcript -path "$LogFile" -append |Out-Null}
 # -----------------------------------------------------------------
 #	debut des traitements
 # -----------------------------------------------------------------
@@ -361,7 +326,7 @@ if ( test-path "$workPath\$consignePurge" ){
         }
     }
 } else {
-    write-host "le fichier n'existe pas. purge du repertoire de base uniquement"
+    Write-Verbose "le fichier n'existe pas. purge du repertoire de base uniquement"
 }
 
 purge -rep $LogPath -fichier "*.log" -retention 30 -r
@@ -369,12 +334,11 @@ compacter -rep $LogPath -fichier "*.log" -retention 2 -R
 
 
 
-
 # -----------------------------------------------------------------
 #	fin du script
 # -----------------------------------------------------------------
 write-host "--- fin du script ---"
-if (!(test-path ENV:\SCHEDULER_JOB_NAME)) {Stop-Transcript}
+if (!(test-path ENV:\SCHEDULER_JOB_NAME)) {Stop-Transcript | Out-Null}
 
  <#
  .SYNOPSIS
@@ -390,15 +354,18 @@ if (!(test-path ENV:\SCHEDULER_JOB_NAME)) {Stop-Transcript}
  purge      => pour supprimer les vieux fichiers
  compacter  => pour compacter les fichier NTFS
  
- Les parametes de chaque fonction sont les mêmes:
+ Les parametres de chaque fonction sont les mêmes:
  -rep  <repertoire> => le nom du repertoire qui contient les fichiers
  -fichier <extention> | -expression <regexp> => le type de fichier à traiter ou une expression reguliere  
  -retention <retention>  => la durée de retention souhaitée
   
- -r  => pour parcourir les sour-répertoire de <repertoire> de façon reccursive (ne fonctionne pas avec compressDir)
+ -r  => pour parcourir les sous-répertoire de <repertoire> de façon reccursive (ne fonctionne pas avec compressDir)
 
  .PARAMETER version
   affiche le numéro de version et se termine sans rien faire
+
+ .PARAMETER help
+ Affiche cette aide
 
  .PARAMETER createconf
   créer un fichier de conf dans le repertoire work
