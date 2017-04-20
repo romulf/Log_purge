@@ -1,4 +1,9 @@
- Log_purge
+purge-ELKindex.ps1
+=========
+permet de purger les index d'un elasticsearch local en precisant le nombre de jour de rétention
+
+
+Log_purge
 =========
 
 Un script powershell  qui permet de gérer les vieux fichiers de log (ou autre)
