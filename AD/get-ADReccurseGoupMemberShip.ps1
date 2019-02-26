@@ -1,9 +1,40 @@
+ <#
+.NOTES
+
+Auteur :     Erwan Le Tiec
+Creation:   26/02/2019
+Modif:
+
+ .SYNOPSIS
+affiche les groupes d'appartenance d'un utilisateur ActiveDir de façon reccursive
+
+ .DESCRIPTION
+affiche les groupes d'appartenance d'un utilisateur ActiveDir de façon reccursive.
+les groupes en doublon apparaissent en rouge.
+
+ .PARAMETER version
+ affiche le numéro de version et se termine sans rien faire
+
+.PARAMETER user
+utilisateur activedirectory 
+#>
+
+# -----------------------------------------------------------------
+# Gestion des paramètres et variables propres au script
+# -----------------------------------------------------------------
+[cmdletBinding()]
 param (
-    $Utilisateur
+    [string] $User,
+    [switch] $version= $false
 )
+
+$scriptversion = 1.0
 
 $script:listeGroup = @()
 
+# -----------------------------------------------------------------
+# Fonction utilisables
+# -----------------------------------------------------------------
 function Affiche-Groupe {
     param ($g, $niveau)
 
@@ -15,7 +46,7 @@ function Affiche-Groupe {
 
     $script:listeGroup += $g.name
     $n="  "* $niveau 
-    $chaine = "{0}|__ {1,-30}" -f $n,$g.name
+    $chaine = "{0}|___ {1,-30}" -f $n,$g.name
     write-host $chaine -ForegroundColor $couleur
 
     $niveau+=1
@@ -23,7 +54,33 @@ function Affiche-Groupe {
         Affiche-groupe $subg $niveau
     }
 }
+ 
 
-foreach ( $g in $(Get-ADPrincipalGroupMembership $Utilisateur) ) {
- Affiche-groupe $g 1
-}
+# -----------------------------------------------------------------
+# Variables génériques
+# -----------------------------------------------------------------
+$scriptName = $myInvocation.MyCommand.Name
+$scriptLongName = $myInvocation.MyCommand.path
+
+# -----------------------------------------------------------------
+#	pre-traitements
+# -----------------------------------------------------------------
+if ($version) {
+    Write-Host "`nnom                   : $scriptName"
+    write-host "version               : $scriptversion"
+    write-host "chemin d'installation : $scriptLongName `n"
+    exit 0
+    }
+
+# -----------------------------------------------------------------
+#	traitements
+# -----------------------------------------------------------------
+
+
+foreach ( $g in $(Get-ADPrincipalGroupMembership $User) ) {
+    Affiche-groupe $g 1
+   }
+
+# -----------------------------------------------------------------
+#	fin du script
+# -----------------------------------------------------------------
